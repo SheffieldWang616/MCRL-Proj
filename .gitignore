@@ -1,0 +1,12 @@
+# ignore Model_Weights/2x_pre folder
+Model_Weights/2x_pre/
+Model_Weights/pre_log
+Model_Weights/PPO
+
+# ignore PPO_Vanilla video folder
+PPO_Vanilla/videos/
+PPO_Vanilla/logs
+PPO_Vanilla/checkpoints
+
+# ignore all pychache folders
+__pycache__/
