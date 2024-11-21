@@ -8,5 +8,8 @@ PPO_Vanilla/videos/
 PPO_Vanilla/logs
 PPO_Vanilla/checkpoints
 
+# ignore logs folder
+logs/
+
 # ignore all pychache folders
 __pycache__/
