@@ -220,7 +220,7 @@ def main(model_path, weights_path, num_envs, steps, video_log, max_frame_count):
         print("Shutting down environments...")
     finally:
         # Save observations and rewards to files
-        print(f"Saving {len(obs_inv)} observations and {len(rewards)} rewards for {num_envs} different Paralleled Workers.")
+        print(f"Saving {len(obs_inv / num_envs)} observations and {len(rewards / num_envs)} rewards for {num_envs} different Paralleled Workers.")
         np.save(os.path.join(save_path, "reward.npy"), np.array(rewards))
         np.save(os.path.join(save_path, "obs_inv.npy"), np.array(obs_inv))
         
