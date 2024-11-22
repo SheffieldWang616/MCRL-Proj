@@ -107,6 +107,8 @@ class MineRLAgent:
     def __init__(self, env, device=None, policy_kwargs=None, pi_head_kwargs=None):
         # validate_env(env)
 
+        print(f"MineRLAgent: MineRL environment is uusing {device} for the agent.")
+
         if device is None:
             device = default_device_type()
         self.device = th.device(device)
