@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument("--cuda", default=False, action='store_true', help="Enable CUDA")
     parser.add_argument("--env", default="Tree-v0", help="Environment to use")
     parser.add_argument("--n-envs", type=int, default=1, help="Number of environments") # Parallel
-    parser.add_argument("--n-epochs", type=int, default=3000, help="Number of epochs to run") # 3000 is fully trained
+    parser.add_argument("--n-epochs", type=int, default=1, help="Number of epochs to run") # 3000 is fully trained
     parser.add_argument("--n-steps", type=int, default=1024, help="Number of steps per epoch per environment")
     parser.add_argument("--batch-size", type=int, default=8192, help="Batch size")
     parser.add_argument("--train-iters", type=int, default=20, help="Number of training iterations")
@@ -96,15 +96,28 @@ if __name__ == "__main__":
     start_time = time.time()
     init_obs = envs.reset()
     next_obs = init_obs['pov']
-    # next_obs['pov'] = torch.tensor(np.array(next_obs['pov'], dtype=np.uint8), device=device)
+    replay_buffer = Buffer(next_obs.shape,args.n_steps, args.n_envs, device, args.gamma, args.gae_lambda, agent=agent)    
+    next_obs = torch.tensor(np.array(next_obs, dtype=np.uint8), device=device)
     next_terminateds = torch.tensor([float(False)], device=device)
     
     reward_list = []
     
     try:
-        obs = next_obs
-        terminateds = next_terminateds
-        observation, actions, rewards, values, terminateds, log_probs = agent.buffer_prep(obs, envs, reward_list, terminateds)
+        for epoch in range(1, args.n_epochs + 1):
+            for step_idx in range(0, args.n_steps):
+                obs = next_obs
+                terminateds = next_terminateds
+                next_obs, actions, rewards, values, terminateds, log_probs = agent.buffer_prep(obs, envs, reward_list, terminateds)
+                # print(type(obs),type(next_obs), type(actions), type(rewards), type(values), type(terminateds), type(log_probs))
+                # print(np.shape(obs))
+                # # print(f"Strides: {observation.strides}")
+                # observation = torch.tensor(obs.copy(), device=device)
+                # print(type(observation))
+                # print(observation.shape)
+                # print(f"Strides: {observation.strides}")
+                # break
+                replay_buffer.store(obs, actions, rewards, values, terminateds, log_probs)
+            break
         # print(actions)
         # for epoch in range(1, args.n_epochs + 1):
         #     # Collect trajectories

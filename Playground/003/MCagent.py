@@ -208,7 +208,7 @@ class MineRLAgent:
             agent_input, self._dummy_first, self.hidden_state,
             stochastic=True,
         )
-        print('Action:', agent_action)
+        # print('Action:', agent_action)
         minerl_action = self._agent_action_to_env(agent_action)
         self.log_prob_and_v = probs_and_v
         self.log_prob_and_v['original_action'] = agent_action
@@ -224,7 +224,7 @@ class MineRLAgent:
     def get_logprob_and_value(self, obs, action = None):
         
         if action is None:
-            minerl_action = self.get_action(obs)
+            minerl_action = self.get_action(obs.cpu().numpy())
             action = self.log_prob_and_v['original_action']
         log_prob = self.log_prob_and_v['log_prob']
         value = self.log_prob_and_v['vpred']
@@ -236,8 +236,9 @@ class MineRLAgent:
         actions, log_probs, values, minerl_action = self.get_logprob_and_value(observation)
         values = values.flatten()
         
-        _, rewards, next_terminateds, _ = envs.step(minerl_action)
-        # next_obs = th.tensor(np.array(next_obs['pov'], dtype=np.uint8), device=self.device)
+        next_obs, rewards, next_terminateds, _ = envs.step(minerl_action)
+
+        next_obs = th.tensor(np.array(next_obs['pov'], dtype=np.uint8), device=self.device)
         if isinstance(rewards, list):
             reward_list.extend(rewards)
             rewards = th.tensor(rewards, device=self.device).view(-1)
@@ -247,7 +248,7 @@ class MineRLAgent:
             rewards = th.tensor(rewards, device=self.device).view(-1)
             next_terminateds = th.tensor([float(next_terminateds)], device=self.device)
         
-        return observation, actions, rewards, values, terminateds, log_probs
+        return next_obs, actions, rewards, values, terminateds, log_probs
         
     
     

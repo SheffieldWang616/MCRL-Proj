@@ -233,7 +233,7 @@ class MinecraftAgentPolicy(nn.Module):
 
         self.value_head = self.make_value_head(self.net.output_latent_size())
         self.pi_head = self.make_action_head(self.net.output_latent_size(), **pi_head_kwargs)
-        print('\n\n******************',type(self.pi_head), '*******************\n\n')
+        # print('\n\n******************',type(self.pi_head), '*******************\n\n')
 
     def make_value_head(self, v_out_size: int, norm_type: str = "ewma", norm_kwargs: Optional[Dict] = None):
         return ScaledMSEHead(v_out_size, 1, norm_type=norm_type, norm_kwargs=norm_kwargs)

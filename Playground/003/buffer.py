@@ -6,13 +6,14 @@ class Buffer:
     Buffer for storing trajectories
     """
 
-    def __init__(self, obs_dim, act_dim, size, num_envs, device, gamma=0.99, gae_lambda=0.95, agent = None):
+    # def __init__(self, obs_dim, act_dim, size, num_envs, device, gamma=0.99, gae_lambda=0.95, agent = None):
+    def __init__(self, obs_dim, size, num_envs, device, gamma=0.99, gae_lambda=0.95, agent = None):
         # Initialize buffer
         self.agent = agent
         self.capacity = size
         # TODO 对比原版PPO的buffer，需要让其运作逻辑和原版PPO相同(看原版PPO的buffer在agent中的调用逻辑和使用意图)
-        self.obs_buf = torch.zeros((size, num_envs, *obs_dim), dtype=torch.float32, device=device) # change to list, buffer pov
-        self.act_buf = torch.zeros((size, num_envs, *act_dim), dtype=torch.float32, device=device) # 可以不要
+        self.obs_buf = torch.zeros((size, num_envs, *obs_dim), dtype=torch.float32, device=device) # change to list, buffer pov)
+        # self.act_buf = torch.zeros((size, num_envs, *act_dim), dtype=torch.float32, device=device) # 可以不要
         self.rew_buf = torch.zeros((size, num_envs), dtype=torch.float32, device=device)
         self.val_buf = torch.zeros((size, num_envs), dtype=torch.float32, device=device)
         self.term_buf = torch.zeros((size, num_envs), dtype=torch.float32, device=device)
@@ -26,7 +27,8 @@ class Buffer:
         In the second dimension are the different environments.
         """
         self.obs_buf[self.ptr] = obs
-        self.act_buf[self.ptr] = act
+        # self.obs_buf[self.ptr] = torch.tensor(obs, device=self.obs_buf.device, dtype=self.obs_buf.dtype)
+        # self.act_buf[self.ptr] = act
         self.rew_buf[self.ptr] = rew
         self.val_buf[self.ptr] = val
         self.term_buf[self.ptr] = term
