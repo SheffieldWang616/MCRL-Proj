@@ -1,0 +1,1 @@
+python ./Playground/003/MCtrainer.py --run-name "my_run" --cuda
