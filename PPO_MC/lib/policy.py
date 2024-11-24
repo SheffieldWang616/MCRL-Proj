@@ -194,7 +194,9 @@ class MinecraftPolicy(nn.Module):
         first = context["first"]
 
         x = self.img_preprocess(ob["img"])
+        # print('\n\n****************** obs shape for model after layer1',x.size(), '*******************\n\n')
         x = self.img_process(x)
+        # print('\n\n****************** obs shape for model after layer2',x.size(), '*******************\n\n')
 
         if self.diff_obs_process:
             processed_obs = self.diff_obs_process(ob["diff_goal"])
@@ -233,6 +235,7 @@ class MinecraftAgentPolicy(nn.Module):
 
         self.value_head = self.make_value_head(self.net.output_latent_size())
         self.pi_head = self.make_action_head(self.net.output_latent_size(), **pi_head_kwargs)
+        # print('\n\n******************',type(self.pi_head), '*******************\n\n')
 
     def make_value_head(self, v_out_size: int, norm_type: str = "ewma", norm_kwargs: Optional[Dict] = None):
         return ScaledMSEHead(v_out_size, 1, norm_type=norm_type, norm_kwargs=norm_kwargs)
@@ -260,7 +263,7 @@ class MinecraftAgentPolicy(nn.Module):
             mask = obs.pop("mask", None)
         else:
             mask = None
-
+        # print('\n\n****************** obs shape for model after preprocess',obs['img'].size(), '*******************\n\n')
         (pi_h, v_h), state_out = self.net(obs, state_in, context={"first": first})
 
         pi_logits = self.pi_head(pi_h, mask=mask)
@@ -309,21 +312,28 @@ class MinecraftAgentPolicy(nn.Module):
         # We need to add a fictitious time dimension everywhere
         obs = tree_map(lambda x: x.unsqueeze(1), obs)
         first = first.unsqueeze(1)
-
+        # print('\n\n******************',type(obs), '*******************\n\n')
+        # print('\n\n****************** obs shape for model',obs['img'].size(), '*******************\n\n')
         (pd, vpred, _), state_out = self(obs=obs, first=first, state_in=state_in)
 
         if taken_action is None:
             ac = self.pi_head.sample(pd, deterministic=not stochastic)
         else:
             ac = tree_map(lambda x: x.unsqueeze(1), taken_action)
+        # print('\n\n******************',type(ac), '*******************\n\n')
+        # print('\n\n******************',ac, '*******************\n\n')
+        action_for_log_prob = ac
         log_prob = self.pi_head.logprob(ac, pd)
         assert not th.isnan(log_prob).any()
 
         # After unsqueezing, squeeze back to remove fictitious time dimension
-        result = {"log_prob": log_prob[:, 0], "vpred": self.value_head.denormalize(vpred)[:, 0]}
+        result = {"log_prob": log_prob[:, 0], "vpred": self.value_head.denormalize(vpred)[:, 0], "raw_action": action_for_log_prob}
         if return_pd:
             result["pd"] = tree_map(lambda x: x[:, 0], pd)
+        # print(ac)
+        # print(ac['camera'].size(), ac['buttons'].size())
         ac = tree_map(lambda x: x[:, 0], ac)
+        # print(ac['camera'].size(), ac['buttons'].size())
 
         return ac, state_out, result
 
@@ -335,8 +345,9 @@ class MinecraftAgentPolicy(nn.Module):
 
         (pd, vpred, _), state_out = self(obs=obs, first=first, state_in=state_in)
 
+        value = self.value_head.denormalize(vpred)[:, 0]
         # After unsqueezing, squeeze back
-        return self.value_head.denormalize(vpred)[:, 0]
+        return pd, value
 
 
 class InverseActionNet(MinecraftPolicy):

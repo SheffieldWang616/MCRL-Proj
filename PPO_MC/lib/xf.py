@@ -48,6 +48,10 @@ def attention(
         bias = get_attn_bias_cached(Q_bte.shape[1], K_bTe.shape[1], maxlen=maxlen, device=Q_bte.device, dtype=th.float32)
     else:
         bias = Q_bte.new_zeros((), dtype=th.float32)
+        
+    # print(f"bias shape: {bias.shape}")
+    # print(f"extra_btT shape: {extra_btT.shape}")
+
     if extra_btT is not None:
         bias = bias + extra_btT
     # Equivalent to bias + (1 / math.sqrt(e)) * th.einsum("bte,bpe->btp", Q_bte, K_bte)
@@ -377,8 +381,8 @@ class SelfAttentionLayer(AttentionLayerBase):
             """
             tprev = prev.shape[1]
             startfull = max(tprev - self.cache_keep_len, 0)
-            # print(f"prev shape: {prev.shape}, new shape: {new.shape}, startfull: {startfull}")
-
+            # new = new.permute(1, 0, 2)
+            # print(f"prev shape: {prev.size()}, new shape: {new.size()}, startfull: {startfull}")
             full = th.cat([prev[:, startfull:], new], dim=1)
             outstate = full[:, max(full.shape[1] - (self.cache_keep_len), 0) :]
             # To see that the preceding slicing is correct, consider the case

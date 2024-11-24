@@ -25,14 +25,14 @@ class Agent(nn.Module):
         self.act_dim = self.params.act_dim
         
         # Actor Network for mu, Diagonal covariance matrix variables are separately trained
-        self.actor, self.actor_logstd = actor_net(self.obs_dim_size, self.act_dim_size)
+        # self.actor, self.actor_logstd = actor_net(self.obs_dim_size, self.act_dim_size)
         self.optimizer = optim.Adam(
                 itertools.chain([self.actor_logstd], self.actor.parameters()),
                 self.params.learning_rate
             )
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=params.learning_rate_decay)
         
-        self.critic = critic_net(self.obs_dim_size)
+        # self.critic = critic_net(self.obs_dim_size)
         
         self.buffer = Buffer(self.obs_dim, self.act_dim, self.params.n_steps, self.params.n_envs, self.params.device, self.params.gamma, self.params.gae_lambda)
         self.device = self.params.device

@@ -3,11 +3,13 @@ import torch as th
 import cv2
 from gym3.types import DictType
 from gym import spaces
+import torchvision.transforms as T
 
 from lib.action_mapping import CameraHierarchicalMapping
 from lib.actions import ActionTransformer
 from lib.policy import MinecraftAgentPolicy
 from lib.torch_util import default_device_type, set_default_torch_device
+from tqdm import tqdm
 
 
 # Hardcoded settings
@@ -99,6 +101,7 @@ def validate_env(env):
 
 def resize_image(img, target_resolution):
     # For your sanity, do not resize with any function than INTER_LINEAR
+    print('+++++++++++++++ obs before reshape', img.shape,'+++++++++++++++')
     img = cv2.resize(img, target_resolution, interpolation=cv2.INTER_LINEAR)
     return img
 
@@ -128,6 +131,11 @@ class MineRLAgent:
         self.policy = MinecraftAgentPolicy(**agent_kwargs).to(device)
         self.hidden_state = self.policy.initial_state(1)
         self._dummy_first = th.from_numpy(np.array((False,))).to(device)
+        
+        self.log_prob_and_v = None
+        self.non_transformed_action = None
+        
+        # self.buffer = Buffer()
 
     def load_weights(self, path):
         """Load model weights from a path, and reset hidden state"""
@@ -137,42 +145,71 @@ class MineRLAgent:
     def reset(self):
         """Reset agent to initial state (i.e., reset hidden state)"""
         self.hidden_state = self.policy.initial_state(1)
+        
+        
 
+    # def _env_obs_to_agent(self, minerl_obs):
+    #     """
+    #     Turn observation from MineRL environment into model's observation
+
+    #     Returns torch tensors.
+    #     """
+    #     agent_input = resize_image(minerl_obs, AGENT_RESOLUTION)[None]
+    #     print('+++++++++++++++ obs after reshape', agent_input.shape,'+++++++++++++++')
+    #     agent_input = {"img": th.from_numpy(agent_input).to(self.device)}
+    #     return agent_input
     def _env_obs_to_agent(self, minerl_obs):
         """
-        Turn observation from MineRL environment into model's observation
+        Turn observation from MineRL environment into model's observation.
+
+        Handles:
+        - Single observation: ndarray (360, 640, 3), resized to (1, 128, 128, 3)
+        - Batch of observations: tensor (n, 360, 640, 3), resized to (n, 128, 128, 3)
 
         Returns torch tensors.
         """
-        agent_input = resize_image(minerl_obs["pov"], AGENT_RESOLUTION)[None]
-        agent_input = {"img": th.from_numpy(agent_input).to(self.device)}
+        # Check if input is a NumPy array (single observation)
+        if isinstance(minerl_obs, np.ndarray):
+            # Ensure contiguous memory layout
+            minerl_obs = minerl_obs.copy()
+            
+            # Convert NumPy array to PyTorch tensor and reshape
+            minerl_obs_tensor = th.from_numpy(minerl_obs).permute(2, 0, 1).float()  # (H, W, C) -> (C, H, W)
+            
+            # Resize using torchvision transforms
+            transform = T.Resize((128, 128))
+            resized_obs = transform(minerl_obs_tensor)
+            
+            # Convert back to channel-last format and add batch dimension
+            resized_obs = resized_obs.permute(1, 2, 0).unsqueeze(0)  # (C, H, W) -> (1, H, W, C)
+        
+        # Check if input is a PyTorch tensor (batch of observations)
+        elif isinstance(minerl_obs, th.Tensor):
+            # Ensure input is in the expected format (n, H, W, C)
+            # if minerl_obs.dim() != 4 or minerl_obs.size(-1) != 3:
+            #     raise ValueError("Expected input tensor with shape (n, 360, 640, 3).")
+            if minerl_obs.dim() != 4:
+                minerl_obs = minerl_obs.unsqueeze(0)
+            
+            # Permute to (n, C, H, W) for torchvision.transforms
+            minerl_obs_tensor = minerl_obs.permute(0, 3, 1, 2).float()  # (n, H, W, C) -> (n, C, H, W)
+            
+            # Resize each image in the batch using transforms
+            transform = T.Resize((128, 128))
+            resized_obs = th.stack([transform(img) for img in minerl_obs_tensor])  # Resize each batch individually
+            
+            # Convert back to channel-last format
+            resized_obs = resized_obs.permute(0, 2, 3, 1)  # (n, C, H, W) -> (n, H, W, C)
+        
+        else:
+            raise TypeError("Input must be either a NumPy array or a PyTorch tensor.")
+        
+        # Send to the desired device and return as dictionary
+        agent_input = {"img": resized_obs.to(self.device)}
+        # print('+++++++++++++++ obs after reshape', resized_obs.size(), '+++++++++++++++')
         return agent_input
-    # def _env_obs_to_agent(self, minerl_obs):
-    #     """
-    #     Convert a batch of MineRL observations into the model's expected input format.
-
-    #     Args:
-    #         minerl_obs (dict): A dictionary containing batched observations with keys like "pov".
-
-    #     Returns:
-    #         dict: A dictionary with the processed "img" tensor suitable for model input.
-    #     """
-    #     # Extract the batch of "pov" images
-    #     pov_batch = minerl_obs["pov"]
-
-    #     # Check if the input is a single image or a batch
-    #     if len(pov_batch.shape) == 3:
-    #         # Single image: add batch dimension
-    #         pov_batch = pov_batch[None, ...]
-
-    #     # Resize each image in the batch
-    #     resized_images = np.array([resize_image(pov, AGENT_RESOLUTION) for pov in pov_batch])
-
-    #     # Convert to a PyTorch tensor and move to the appropriate device
-    #     agent_input = {"img": th.from_numpy(resized_images).to(self.device)}
-
-    #     return agent_input
-
+    
+    
 
     def _agent_action_to_env(self, agent_action):
         """Turn output from policy into action for MineRL"""
@@ -224,9 +261,65 @@ class MineRLAgent:
         # The "first" argument could be used to reset tell episode
         # boundaries, but we are only using this for predicting (for now),
         # so we do not hassle with it yet.
-        agent_action, self.hidden_state, _ = self.policy.act(
+        agent_action, self.hidden_state, results = self.policy.act(
             agent_input, self._dummy_first, self.hidden_state,
-            stochastic=True
+            stochastic=True,
         )
+        # print('Action:', agent_action)
         minerl_action = self._agent_action_to_env(agent_action)
+        self.log_prob_and_v = results
+        # self.log_prob_and_v['original_action'] = agent_action
+        
         return minerl_action
+
+    def get_logprob_and_value(self, obs, action = None):
+        minerl_action = None
+        entropy = None
+        if action is None:
+            minerl_action = self.get_action(obs)
+            action = self.log_prob_and_v['raw_action']
+            log_prob = self.log_prob_and_v['log_prob']
+            value = self.log_prob_and_v['vpred']
+        else:
+            with th.no_grad():
+                agent_input = [self._env_obs_to_agent(ob) for ob in obs]
+                
+                batch_size = len(agent_input)
+                
+                log_prob = th.empty(batch_size, device=self.device)  # 1D tensor for log_probs
+                value = th.empty(batch_size, device=self.device)
+                entropy = th.empty(batch_size, device=self.device)
+                
+                for i in tqdm(range(len(agent_input)), desc='Getting log_probs and values from trajectory'):
+                    pd, vpred, _ = self.policy.get_output_for_observation(agent_input[i], self.hidden_state, self._dummy_first)
+                    lgp = self.policy.get_logprob_of_action(pd, action[i])
+                    log_prob[i] = lgp
+                    value[i] = vpred
+                    entropy[i] = self.policy.pi_head.entropy(pd)
+                    # print('\n\n', type(lgp), lgp, type(vpred), vpred, '\n\n')
+                    # print('\n\n', self.policy.pi_head.entropy(pd), '\n\n')
+                    # break
+            # log_prob = th.stack(log_prob)
+        
+        return action, log_prob, value, minerl_action, entropy
+    
+    def buffer_prep(self, observation, envs, reward_list, terminateds):
+        
+        actions, log_probs, values, minerl_action, _ = self.get_logprob_and_value(observation)
+        values = values.flatten()
+        
+        next_obs, rewards, next_terminateds, _ = envs.step(minerl_action)
+        next_obs = th.tensor(np.array(next_obs['pov'], dtype=np.uint8), device=self.device)
+        if isinstance(rewards, list):
+            reward_list.extend(rewards)
+            rewards = th.tensor(rewards, device=self.device).view(-1)
+            next_terminateds = th.tensor([float(term) for term in next_terminateds], device=self.device)
+        else:
+            reward_list.append(rewards)
+            rewards = th.tensor(rewards, device=self.device).view(-1)
+            next_terminateds = th.tensor([float(next_terminateds)], device=self.device)
+        
+        return next_obs, actions, rewards, values, terminateds, log_probs
+        
+    
+    

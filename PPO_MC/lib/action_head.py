@@ -245,6 +245,7 @@ class DictActionHead(nn.ModuleDict):
                 if kwarg is not None and head_name in kwarg
             }
             result[head_name] = subhead(input_data, **head_kwargs)
+        # print(result['camera'].size(), result['buttons'].size())
         return result
 
     def logprob(self, actions: torch.Tensor, logits: torch.Tensor) -> torch.Tensor:
