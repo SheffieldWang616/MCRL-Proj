@@ -28,7 +28,7 @@ def load_checkpoint(agent, optimizer, checkpoint_path):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run-name", required=True, help="Name of the run")
+    parser.add_argument("--run-name",default="my_run", help="Name of the run")
     parser.add_argument("--cuda", default=False, action='store_true', help="Enable CUDA")
     parser.add_argument("--env", default="Tree-v0", help="Environment to use")
     parser.add_argument("--n-envs", type=int, default=1, help="Number of environments") # Parallel
@@ -49,8 +49,8 @@ def parse_args():
     # NOTE: add checkpoint path as argument
     parser.add_argument("--checkpoint-path", type=str, default=None, help="Path to resume checkpoint")
     # NOTE: Existing model
-    parser.add_argument("--weights", type=str, default = 'F:\\16831_RL\\Proj\\MCRL-Proj\\Model_Weights\\2x_pre\\rl-from-house-2x.weights', help="Path to the '.weights' file to be loaded.")
-    parser.add_argument("--model", type=str, default = 'F:\\16831_RL\\Proj\\MCRL-Proj\\Model_Weights\\2x_pre\\2x.model', help="Path to the '.model' file to be loaded.")
+    parser.add_argument("--weights", type=str, default = './Model_Weights/2x_pre/rl-from-house-2x.weights', help="Path to the '.weights' file to be loaded.")
+    parser.add_argument("--model", type=str, default = './Model_Weights/2x_pre/2x.model', help="Path to the '.model' file to be loaded.")
     
     return parser.parse_args()
 
@@ -60,6 +60,7 @@ if __name__ == "__main__":
     args = parse_args()
     device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
     args.device = device
+
 
     # Create the folders for logging
     current_dir = os.path.dirname(__file__)
