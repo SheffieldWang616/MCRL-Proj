@@ -29,7 +29,7 @@ def load_checkpoint(agent, optimizer, checkpoint_path):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-name", required=True, help="Name of the run")
-    parser.add_argument("--cuda", default=False, action='store_true', help="Enable CUDA")
+    parser.add_argument("--cuda", default=True, action='store_true', help="Enable CUDA")
     parser.add_argument("--env", default="Tree-v0", help="Environment to use")
     parser.add_argument("--n-envs", type=int, default=1, help="Number of environments") # Parallel
     parser.add_argument("--n-epochs", type=int, default=3000, help="Number of epochs to run") # 3000 is fully trained
@@ -90,6 +90,8 @@ if __name__ == "__main__":
     
     envs = gym.make(args.env)
     test_env = gym.make(args.env)
+    envs.seed(2143)
+    test_env.seed(2143)
     # TODO Build buffer
     # replay_buffer = Buffer(args.n_steps, args.n_envs, device, args.gamma, args.gae_lambda, agent=agent)
     # start_epoch = 1
@@ -110,6 +112,7 @@ if __name__ == "__main__":
     try:
         for epoch in tqdm(range(1, args.n_epochs + 1), desc="Epochs"):
             for step_idx in tqdm(range(0, args.n_steps), desc=f"Collecting Trajectory", leave=False):
+                global_step_idx += args.n_envs
                 obs = next_obs
                 terminateds = next_terminateds
                 next_obs, actions, rewards, values, terminateds, log_probs = agent.buffer_prep(obs, envs, reward_list, terminateds)
@@ -120,10 +123,10 @@ if __name__ == "__main__":
             # print(replay_buffer.act_buf)
             # with open('action_buffer.pkl', 'wb') as f:
             #     pickle.dump(replay_buffer.act_buf, f)
-            with open('all_obs.pkl', 'wb') as f:
-                pickle.dump(replay_buffer.obs_buf, f)
+            # with open('all_obs.pkl', 'wb') as f:
+            #     pickle.dump(replay_buffer.obs_buf, f)
             # print(replay_buffer.val_buf.size())
-            break
+            # break
             with torch.no_grad():
                 _, _, next_vals, _, _ = agent.get_logprob_and_value(next_obs)
                 next_vals = next_vals.reshape(1, -1)
@@ -170,21 +173,32 @@ if __name__ == "__main__":
                     
                     loss = policy_loss + args.vf_coef * value_loss - args.ent_coef * entropy
                     
-                    # optimizer.zero_grad()
-                    # loss.backward()
-                    # nn.utils.clip_grad_norm_(agent.parameters(), args.max_grad_norm)
-                    # optimizer.step()
-
-                    # sum_loss_policy += policy_loss.item()
-                    # sum_loss_value += value_loss.item()
-                    # sum_entropy += entropy.item()
-                    # sum_loss_total += loss.item()
+                    # print(sum(reward_list))
                     
-                    break
-                break
+                    optimizer.zero_grad()
+                    loss.backward()
+                    # nn.utils.clip_grad_norm_(agent.policy.parameters(), args.max_grad_norm)
+                    optimizer.step()
+
+                    sum_loss_policy += policy_loss.item()
+                    sum_loss_value += value_loss.item()
+                    sum_entropy += entropy.item()
+                    sum_loss_total += loss.item()
+                # break
+            # break
+            scheduler.step()
+            cum_reward = sum(reward_list)
+            print('\n\n***************** Cumulative reward for this rollout: ', cum_reward, '*****************\n\n')
+            reward_list = []
             
-            break
-                
+            # writer.add_scalar("losses/policy_loss", sum_loss_policy / args.train_iters, global_step_idx)
+            # writer.add_scalar("losses/value_loss", sum_loss_value / args.train_iters, global_step_idx)
+            # writer.add_scalar("losses/entropy", sum_entropy / args.train_iters, global_step_idx)
+            # writer.add_scalar("losses/total_loss", sum_loss_total / args.train_iters, global_step_idx)
+            # writer.add_scalar("charts/avg_reward", cum_reward, global_step_idx)
+            # writer.add_scalar("charts/learning_rate", optimizer.param_groups[0]['lr'], global_step_idx)
+            # writer.add_scalar("charts/SPS", global_step_idx / (time.time() - start_time), global_step_idx)
+        
     finally:
         envs.close()
         test_env.close()

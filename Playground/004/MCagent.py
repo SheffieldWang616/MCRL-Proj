@@ -281,7 +281,7 @@ class MineRLAgent:
             log_prob = self.log_prob_and_v['log_prob']
             value = self.log_prob_and_v['vpred']
         else:
-            with th.no_grad():
+            # with th.no_grad():
                 agent_input = [self._env_obs_to_agent(ob) for ob in obs]
                 
                 batch_size = len(agent_input)

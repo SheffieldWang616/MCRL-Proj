@@ -13,3 +13,6 @@ logs/
 
 # ignore all pychache folders
 __pycache__/
+Playground/004/md.model
+Playground/004/wt.weights
+Playground/004/all_obs.pkl

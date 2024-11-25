@@ -399,7 +399,7 @@ class SelfAttentionLayer(AttentionLayerBase):
             # new = new.permute(1, 0, 2)
 
             # NOTE: print this for shape debugging
-            print(f"Before concatenation: prev shape = {prev.shape}, new shape = {new.shape}, startfull = {startfull}")
+            # print(f"Before concatenation: prev shape = {prev.shape}, new shape = {new.shape}, startfull = {startfull}")
             # if bs=1, prev shape = torch.Size([1, 128, 2048]), new shape = torch.Size([1, 1, 2048]), startfull = 0
             # if bs=2, prev shape = torch.Size([1, 128, 2048]), new shape = torch.Size([2, 1, 2048]), startfull = 0
 

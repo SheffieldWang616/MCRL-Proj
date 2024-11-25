@@ -15,7 +15,8 @@ def log_video(env, agent, device, video_path, fps=30):
     :param fps: the frames per second of the video.
     """
     frames = []
-    obs, _ = env.reset()
+    obs = env.reset()
+    obs = obs['pov']
     done = False
     while not done:
         # Render the frame
