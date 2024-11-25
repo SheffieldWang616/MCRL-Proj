@@ -123,10 +123,17 @@ class ResidualRecurrentBlocks(nn.Module):
         return x, state_out
 
     def initial_state(self, batchsize):
-        if "lstm" in self.recurrence_type:
-            return [None for b in self.blocks]
-        else:
-            return [b.r.initial_state(batchsize) for b in self.blocks]
+        # NOTE: The new code ensures LSTM states are initialized as zero tensors for compatibility (TODO: might be incorrect, need double check)
+        return [
+            b.r.initial_state(batchsize) if "lstm" not in self.recurrence_type 
+            else th.zeros((batchsize, self.attention_memory_size, self.hidsize), dtype=th.float32)
+            for b in self.blocks
+        ]
+    
+        #     if "lstm" in self.recurrence_type:
+        #         return [None for b in self.blocks]
+        #     else:
+        #         return [b.r.initial_state(batchsize) for b in self.blocks]
 
 
 class ResidualRecurrentBlock(nn.Module):

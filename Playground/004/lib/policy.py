@@ -193,6 +193,10 @@ class MinecraftPolicy(nn.Module):
     def forward(self, ob, state_in, context):
         first = context["first"]
 
+        # NOTE: Reinitialize `state_in` if the batch size doesn't match the input batch size
+        if state_in is None or state_in[0] is None or not isinstance(state_in[0][1][0], th.Tensor) or state_in[0][1][0].size(0) != ob["img"].size(0):
+            state_in = self.recurrent_layer.initial_state(batchsize=ob["img"].shape[0])
+
         x = self.img_preprocess(ob["img"])
         # print('\n\n****************** obs shape for model after layer1',x.size(), '*******************\n\n')
         x = self.img_process(x)

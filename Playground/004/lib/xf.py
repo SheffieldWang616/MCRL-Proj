@@ -43,6 +43,11 @@ def attention(
         invalid = (K_bTe == SENTINEL).int().sum(dim=-1) == e
         invalid = misc.reshape(invalid, "b, T", "b, 1, T")
     if isinstance(mask, th.Tensor):
+
+        # NOTE: If the batch size doesn't match, recreate the mask with proper size
+        if mask.shape[0] != Q_bte.shape[0]:
+            mask = mask[:1].expand(Q_bte.shape[0], *mask.shape[1:])  # Broadcast from first batch
+
         bias = (~mask).float() * -1e9
     elif mask:
         bias = get_attn_bias_cached(Q_bte.shape[1], K_bTe.shape[1], maxlen=maxlen, device=Q_bte.device, dtype=th.float32)
@@ -53,6 +58,11 @@ def attention(
     # print(f"extra_btT shape: {extra_btT.shape}")
 
     if extra_btT is not None:
+
+        # NOTE: Sanity check for `extra_btT` batch size
+        if bias.shape[0] != extra_btT.shape[0]:
+            raise RuntimeError(f"Batch size mismatch: bias {bias.shape}, extra_btT {extra_btT.shape}")
+        
         bias = bias + extra_btT
     # Equivalent to bias + (1 / math.sqrt(e)) * th.einsum("bte,bpe->btp", Q_bte, K_bte)
     # but faster:
@@ -360,6 +370,11 @@ class SelfAttentionLayer(AttentionLayerBase):
         return Aproj_bte, state
 
     def forward(self, X_bte, state):
+
+        # NOTE: If the batch size doesn't match, recreate the state with proper size
+        if state and state[0].shape[0] != X_bte.shape[0]:  # Check batch size
+            state = self.initial_state(batchsize=X_bte.shape[0])  # Reinitialize state
+
         R_bte, state = self.residual(X_bte, state)
         return X_bte + R_bte, state
 
@@ -382,7 +397,12 @@ class SelfAttentionLayer(AttentionLayerBase):
             tprev = prev.shape[1]
             startfull = max(tprev - self.cache_keep_len, 0)
             # new = new.permute(1, 0, 2)
-            # print(f"prev shape: {prev.size()}, new shape: {new.size()}, startfull: {startfull}")
+
+            # NOTE: print this for shape debugging
+            print(f"Before concatenation: prev shape = {prev.shape}, new shape = {new.shape}, startfull = {startfull}")
+            # if bs=1, prev shape = torch.Size([1, 128, 2048]), new shape = torch.Size([1, 1, 2048]), startfull = 0
+            # if bs=2, prev shape = torch.Size([1, 128, 2048]), new shape = torch.Size([2, 1, 2048]), startfull = 0
+
             full = th.cat([prev[:, startfull:], new], dim=1)
             outstate = full[:, max(full.shape[1] - (self.cache_keep_len), 0) :]
             # To see that the preceding slicing is correct, consider the case

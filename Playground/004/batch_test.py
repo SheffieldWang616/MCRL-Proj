@@ -4,8 +4,11 @@ import torch
 
 
 '''Model path and weights path'''
-model_path = 'md.model'
-weights_path = 'wt.weights'
+# model_path = 'md.model'
+# weights_path = 'wt.weights'
+
+model_path = "Model_Weights/2x_pre/2x.model"
+weights_path = "Model_Weights/2x_pre/foundation-model-2x.weights"
 
 with open(model_path, 'rb') as f:
     agent_parameters = pickle.load(f)
@@ -23,7 +26,7 @@ with open('all_obs.pkl', 'rb') as f:
 obs = obs.squeeze(1)
 
 # Change batch to test, 1 won't error, more would
-batch = 1
+batch = 3
 # agent_input is a dict, key is 'img', value is a tensor with shape (batch, 128, 128, 3), use smaller batch (2 - 64) to avoid memory error
 agent_input = agent._env_obs_to_agent(obs[:batch]) 
 
@@ -41,3 +44,4 @@ pd, vpred, _ = agent.policy.get_output_for_observation(agent_input, agent.hidden
 print("Camera Probability Distribution: ", pd['camera'].shape)
 print("Buttons Probability Distribution: ", pd['buttons'].shape)
 print("Value Prediction: ", vpred.shape)
+print("Value Prediction = \n", vpred)
