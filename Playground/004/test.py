@@ -1,8 +1,11 @@
+import os
+os.system('cls')
 import gym
 import minerl
 from collections import OrderedDict
 from MCagent import MineRLAgent
 import pickle
+from utils import *
 '''
 agent_parameters = pickle.load(open('md.model', "rb"))
 policy_kwargs = agent_parameters["model"]["args"]["net"]["args"]
@@ -41,7 +44,12 @@ while not done:
     obs, reward, done, info = env.step(ac)
     obs = obs['pov']
     env.render()
+# log_video(env, agent, 'test.mp4')
+
+
 env.close()
+
+
 # print("AsyncVectorEnv Action Space:", env.action_space)
 # print("AsyncVectorEnv Action Space Dict Keys:", env.action_space.spaces.keys())
 # obs = env.reset()

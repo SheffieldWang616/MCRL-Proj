@@ -10,6 +10,9 @@ PPO_Vanilla/checkpoints
 
 # ignore logs folder
 logs/
+Playground/004/videos
+Playground/004/logs
+Playground/004/checkpoints
 
 # ignore all pychache folders
 __pycache__/

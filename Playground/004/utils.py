@@ -4,8 +4,9 @@ import numpy as np
 import gym
 from collections import OrderedDict
 import pickle
+from tqdm import tqdm
 
-def log_video(env, agent, device, video_path, fps=30):
+def log_video(env, agent, video_path, fps=20, max_steps=512):
     """
     Log a video of one episode of the agent playing in the environment.
     :param env: a test environment which supports video recording and doesn't conflict with the other environments.
@@ -14,25 +15,24 @@ def log_video(env, agent, device, video_path, fps=30):
     :param video_path: the path to save the video.
     :param fps: the frames per second of the video.
     """
+    env.seed(1729)
     frames = []
     obs = env.reset()
     obs = obs['pov']
-    done = False
-    while not done:
-        # Render the frame
-        frames.append(env.render())
+    frames.append(obs)
+    for _ in tqdm(range(max_steps), desc="Recording video"):
         # Sample an action
-        with torch.no_grad():
-            action, _, _, _ = agent.get_action_and_value(
-                torch.tensor(np.array([obs], dtype=np.float32), device=device))
+        action = agent.get_action(obs)
         # Step the environment
-        obs, _, terminated, _, _ = env.step(action.squeeze(0).cpu().numpy())
-        done = terminated
+        obs, _, _, _ = env.step(action)
+        obs = obs['pov']
+        frames.append(obs)
     # Save the video
     out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frames[0].shape[1], frames[0].shape[0]))
     for frame in frames:
         out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
     out.release()
+    print(f"Video saved to {video_path}")
     
 def save_obs(obs, path = 'all_observations.pkl'):
     with open(path, 'wb') as f:

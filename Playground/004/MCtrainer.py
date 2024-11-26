@@ -90,8 +90,9 @@ if __name__ == "__main__":
     
     envs = gym.make(args.env)
     test_env = gym.make(args.env)
-    envs.seed(2143)
-    test_env.seed(2143)
+    test_env.seed(1729)
+    # envs.seed(2143)
+    # test_env.seed(2143)
     # TODO Build buffer
     # replay_buffer = Buffer(args.n_steps, args.n_envs, device, args.gamma, args.gae_lambda, agent=agent)
     # start_epoch = 1
@@ -111,12 +112,19 @@ if __name__ == "__main__":
     
     try:
         for epoch in tqdm(range(1, args.n_epochs + 1), desc="Epochs"):
-            for step_idx in tqdm(range(0, args.n_steps), desc=f"Collecting Trajectory", leave=False):
-                global_step_idx += args.n_envs
-                obs = next_obs
-                terminateds = next_terminateds
-                next_obs, actions, rewards, values, terminateds, log_probs = agent.buffer_prep(obs, envs, reward_list, terminateds)
-                replay_buffer.store(obs, actions, rewards, values, terminateds, log_probs)
+            while sum(reward_list) >= 0:
+                replay_buffer.ptr = 0
+                reward_list = []
+                for step_idx in tqdm(range(0, args.n_steps), desc=f"Collecting Trajectory", leave=False):
+                    global_step_idx += args.n_envs
+                    obs = next_obs
+                    terminateds = next_terminateds
+                    next_obs, actions, rewards, values, terminateds, log_probs = agent.buffer_prep(obs, envs, reward_list, terminateds)
+                    replay_buffer.store(obs, actions, rewards, values, terminateds, log_probs)
+                if sum(reward_list) >= 0:
+                    print('\nInvalid rollout with no reward. No parameter update.\n')
+                else:
+                    print('\nValid rollout, proceeding to train. Reward of this rollout: ', sum(reward_list), '\n')
                 # print(replay_buffer.obs_buf.size())
                 # break
             # break
@@ -174,7 +182,7 @@ if __name__ == "__main__":
                     loss = policy_loss + args.vf_coef * value_loss - args.ent_coef * entropy
                     
                     # print(sum(reward_list))
-                    
+                    # if sum(reward_list) != 0:
                     optimizer.zero_grad()
                     loss.backward()
                     # nn.utils.clip_grad_norm_(agent.policy.parameters(), args.max_grad_norm)
@@ -188,8 +196,9 @@ if __name__ == "__main__":
             # break
             scheduler.step()
             cum_reward = sum(reward_list)
-            print('\n\n***************** Cumulative reward for this rollout: ', cum_reward, '*****************\n\n')
+            # print('\n***************** Cumulative reward for this rollout: ', cum_reward, 'Len of Reward List', len(reward_list),'*****************\n')
             reward_list = []
+            log_video(test_env, agent, os.path.join(videos_dir, f"epoch_{epoch}.mp4"))
             
             # writer.add_scalar("losses/policy_loss", sum_loss_policy / args.train_iters, global_step_idx)
             # writer.add_scalar("losses/value_loss", sum_loss_value / args.train_iters, global_step_idx)
