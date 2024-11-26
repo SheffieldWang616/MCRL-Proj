@@ -101,32 +101,61 @@ if __name__ == "__main__":
     
     global_step_idx = 0
     start_time = time.time()
+    # init_obs = envs.reset()
+    # next_obs = init_obs['pov']
+    # obs_dim = next_obs.shape
+    obs_dim = (360, 640, 3)
+    replay_buffer = Buffer(obs_dim, args.n_steps, args.n_envs, device, args.gamma, args.gae_lambda, agent=agent)   
+    # next_obs = torch.tensor(np.array(next_obs, dtype=np.uint8), device=device)
+    # next_terminateds = torch.tensor([float(False)], device=device)
+    
+    reward_list = []
     init_obs = envs.reset()
     next_obs = init_obs['pov']
-    obs_dim = next_obs.shape
-    replay_buffer = Buffer(obs_dim, args.n_steps, args.n_envs, device, args.gamma, args.gae_lambda, agent=agent)   
     next_obs = torch.tensor(np.array(next_obs, dtype=np.uint8), device=device)
     next_terminateds = torch.tensor([float(False)], device=device)
     
-    reward_list = []
+    SATISFY_FLAG = False
+    SATISFY_THRESHOLD = 10
     
     try:
         for epoch in tqdm(range(1, args.n_epochs + 1), desc="Epochs"):
-            while sum(reward_list) >= 0:
+            counter = 0
+            while True:
+                if counter >= 16:
+                    print("\nExceeded 16 invalid rollout. Skipping to next epoch.\n")
+                    break
+                    
                 replay_buffer.ptr = 0
                 reward_list = []
+                
                 for step_idx in tqdm(range(0, args.n_steps), desc=f"Collecting Trajectory", leave=False):
                     global_step_idx += args.n_envs
                     obs = next_obs
                     terminateds = next_terminateds
                     next_obs, actions, rewards, values, terminateds, log_probs = agent.buffer_prep(obs, envs, reward_list, terminateds)
                     replay_buffer.store(obs, actions, rewards, values, terminateds, log_probs)
-                if sum(reward_list) >= 0:
-                    print('\nInvalid rollout with no reward. No parameter update.\n')
+                
+                total_reward = sum(reward_list)
+                if total_reward >= 0:
+                    print(f'\nInvalid rollout with reward ({total_reward}). Continue rollout.\n')
+                    counter += 1 
+                    continue
+                
+                elif total_reward > SATISFY_THRESHOLD:
+                    print(f"\nTotal reward ({total_reward}) exceeded threshold ({SATISFY_THRESHOLD}). Exiting all loops.\n")
+                    SATISFY_FLAG = True
+                    break
+                
                 else:
-                    print('\nValid rollout, proceeding to train. Reward of this rollout: ', sum(reward_list), '\n')
+                    print('\nValid rollout, proceeding to train. Reward of this rollout: ', total_reward, '\n')
+                    break
                 # print(replay_buffer.obs_buf.size())
-                # break
+                        
+            if SATISFY_FLAG:
+                break
+            elif counter >= 16:
+                continue
             # break
             # print(replay_buffer.act_buf)
             # with open('action_buffer.pkl', 'wb') as f:

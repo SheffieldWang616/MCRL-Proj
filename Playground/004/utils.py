@@ -6,7 +6,7 @@ from collections import OrderedDict
 import pickle
 from tqdm import tqdm
 
-def log_video(env, agent, video_path, fps=20, max_steps=512):
+def log_video(env, agent, video_path, fps=20, max_steps=1024):
     """
     Log a video of one episode of the agent playing in the environment.
     :param env: a test environment which supports video recording and doesn't conflict with the other environments.
@@ -24,9 +24,12 @@ def log_video(env, agent, video_path, fps=20, max_steps=512):
         # Sample an action
         action = agent.get_action(obs)
         # Step the environment
-        obs, _, _, _ = env.step(action)
+        obs, _, done, _ = env.step(action)
         obs = obs['pov']
         frames.append(obs)
+        if done:
+            env.reset()
+            break
     # Save the video
     out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frames[0].shape[1], frames[0].shape[0]))
     for frame in frames:

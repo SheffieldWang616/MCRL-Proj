@@ -1,3 +1,3 @@
 python MCtrainer.py --run-name "my_run" --model md.model --weights wt.weights --cuda
 
-python MCtrainer.py --run-name "my_run" --model md.model --weights wt.weights --n-epochs 10 --n-steps 128 --batch-size 512 --train-iters 2
+python MCtrainer.py --run-name "my_run" --model md.model --weights wt.weights --n-epochs 10 --n-steps 128 --batch-size 512 --train-iters 1

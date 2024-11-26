@@ -33,18 +33,19 @@ agent = MineRLAgent(policy_kwargs=policy_kwargs, pi_head_kwargs=pi_head_kwargs)
 agent.load_weights('wt.weights')
 
 env = gym.make("Tree-v0")
+env.seed(1729)
 obs = env.reset()['pov']
 
 done = False
-while not done:
-    ac = agent.get_action(obs)
-    # print(result['log_prob'].size())
-    # print(result['pd']['buttons'].size())
-    # print(result['pd']['camera'].size())
-    obs, reward, done, info = env.step(ac)
-    obs = obs['pov']
-    env.render()
-# log_video(env, agent, 'test.mp4')
+# while not done:
+#     ac = agent.get_action(obs)
+#     # print(result['log_prob'].size())
+#     # print(result['pd']['buttons'].size())
+#     # print(result['pd']['camera'].size())
+#     obs, reward, done, info = env.step(ac)
+#     obs = obs['pov']
+#     env.render()
+log_video(env, agent, 'original_performance.mp4')
 
 
 env.close()
